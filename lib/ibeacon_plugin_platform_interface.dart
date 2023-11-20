@@ -23,7 +23,7 @@ abstract class IbeaconPluginPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<bool?> enableBeacon() {
+  Future<bool?> enableBeacon({required String uuid}) {
     throw UnimplementedError('This has not been implemented.');
   }
 

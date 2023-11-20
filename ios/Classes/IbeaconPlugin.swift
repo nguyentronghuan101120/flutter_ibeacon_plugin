@@ -2,24 +2,27 @@ import Flutter
 import UIKit
 
 public class IbeaconPlugin: NSObject, FlutterPlugin {
-  public static func register(with registrar: FlutterPluginRegistrar) {
-    let channel = FlutterMethodChannel(name: "ibeacon_plugin", binaryMessenger: registrar.messenger())
-    let instance = IbeaconPlugin()
-    registrar.addMethodCallDelegate(instance, channel: channel)
-  }
-
-  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-    switch call.method {
-    case "enableBeacon":
-       self.handleTiggerBeacon(call, result: result)
-    case "disableBeacon":
-       self.beaconManager.stopAdvertising()
-    default:
-      result(FlutterMethodNotImplemented)
+    public static func register(with registrar: FlutterPluginRegistrar) {
+        let channel = FlutterMethodChannel(name: "ibeacon_plugin", binaryMessenger: registrar.messenger())
+        let instance = IbeaconPlugin()
+        registrar.addMethodCallDelegate(instance, channel: channel)
     }
-  }
-
-      @objc func handleTiggerBeacon(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    
+    let beaconManager = BeaconManager()
+    
+    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        switch call.method {
+        case "enableBeacon":
+            self.handleTiggerBeacon(call, result: result)
+        case "disableBeacon":
+            self.beaconManager.stopAdvertising()
+            result(false)
+        default:
+            result(FlutterMethodNotImplemented)
+        }
+    }
+    
+    @objc func handleTiggerBeacon(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         
         var uuidFromFlutter = ""
         
@@ -31,7 +34,7 @@ public class IbeaconPlugin: NSObject, FlutterPlugin {
             
             
         } else {
-            result(FlutterError.init(code: "errorSetDebug", message: "data or format error", details: nil))
+            result(FlutterError.init(code: "errorSetDebug", message: "Not have UUID", details: nil))
         }
         do {
             beaconManager.createBeaconRegion(uuid: uuidFromFlutter)
@@ -47,7 +50,6 @@ public class IbeaconPlugin: NSObject, FlutterPlugin {
             
             result(false)
         }
-        
     }
     
 }
