@@ -10,6 +10,7 @@ import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.ParcelUuid
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
@@ -21,6 +22,8 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
+import java.nio.ByteBuffer
+import java.util.UUID
 
 
 /** IbeaconPlugin */
@@ -49,15 +52,24 @@ class IbeaconPlugin : FlutterPlugin, MethodCallHandler {
 
 
     override fun onMethodCall(call: MethodCall, result: Result) {
-        if (call.method == "enableBeacon") {
-            startAdvertising()
-            result.success(true)
+        when (call.method) {
+            "enableBeacon" -> {
+                val hashMap = call.arguments as HashMap<*, *> //Get the arguments as a HashMap
 
-        } else if (call.method == "disableBeacon") {
-            stopAdvertising()
-            result.success(false)
-        } else {
-            result.notImplemented()
+                val uuid = hashMap["uuid"].toString()
+                startAdvertising(uuid = uuid)
+                result.success(true)
+
+            }
+
+            "disableBeacon" -> {
+                stopAdvertising()
+                result.success(false)
+            }
+
+            else -> {
+                result.notImplemented()
+            }
         }
     }
 
@@ -75,55 +87,126 @@ class IbeaconPlugin : FlutterPlugin, MethodCallHandler {
     private var advertiser: BluetoothLeAdvertiser? = null
 
 
-    private fun startAdvertising() {
+    private fun startAdvertising(uuid: String) {
+//
+//        //Advertising packet
+//        val payload = byteArrayOf(
+//            0x02,
+//            0x15,
+//            0x01,
+//            0x02,
+//            0x03,
+//            0x04,
+//            0x01,
+//            0x02,
+//            0x03,
+//            0x04,
+//            0x01,
+//            0x02,
+//            0x03,
+//            0x04,
+//            0x01,
+//            0x02,
+//            0x03,
+//            0x04,
+//            0x0B,
+//            0x0B,
+//            0x0C,
+//            0x0C,
+//            0x01
+//        )
+//
+//
+//        val advertiseData = AdvertiseData.Builder()
+//
+//        advertiseData.addManufacturerData(0x004C, payload)
+//
+//
+//        val settingsBuilder = AdvertiseSettings.Builder()
+//        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
+//        settingsBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH);
+//        settingsBuilder.setConnectable(true);
+//
+//
+//        // Have to check if permission to advertise bluetooth is permitted.
+//        advertiser?.startAdvertising(
+//            settingsBuilder.build(),
+//            advertiseData.build(),
+//            advertiseCallback
+//        )
+//
 
-        //Advertising packet
-        val payload = byteArrayOf(
-            0x02,
-            0x15,
-            0x01,
-            0x02,
-            0x03,
-            0x04,
-            0x01,
-            0x02,
-            0x03,
-            0x04,
-            0x01,
-            0x02,
-            0x03,
-            0x04,
-            0x01,
-            0x02,
-            0x03,
-            0x04,
-            0x0B,
-            0x0B,
-            0x0C,
-            0x0C,
-            0x01
-        )
+        try {
+            val mAdData = AdvertiseData.Builder()
+            val mManufacturerData = ByteBuffer.allocate(24)
+            val uuid = getIdAsByte(UUID.fromString(uuid))
 
+            mManufacturerData.put(0, 0xBE.toByte()) // Beacon Identifier
+            mManufacturerData.put(1, 0xAC.toByte()) // Beacon Identifier
 
-        val advertiseData = AdvertiseData.Builder()
-        advertiseData.addManufacturerData(0x004C, payload)
-        // advertiseData.addServiceData(ParcelUuid.fromString("0A0B0C0D-8F07-4F07-A807-8D7FE5AD2984"),payload)
+            for (i in 2..17) {
+                mManufacturerData.put(i, uuid[i - 2]) // adding the UUID
+            }
 
-        val settingsBuilder = AdvertiseSettings.Builder()
-        settingsBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
-        settingsBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH);
-        settingsBuilder.setConnectable(true);
+            mManufacturerData.put(18, 0x00.toByte()) // first byte of Major
+            mManufacturerData.put(19, 0x09.toByte()) // second byte of Major
+            mManufacturerData.put(20, 0x00.toByte()) // first minor
+            mManufacturerData.put(21, 0x06.toByte()) // second minor
+            mManufacturerData.put(22, 0xB5.toByte()) // txPower
 
+            mAdData.addManufacturerData(0x004C, mManufacturerData.array()) // u
 
-        // Have to check if permission to advertise bluetooth is permitted.
-        advertiser?.startAdvertising(
-            settingsBuilder.build(),
-            advertiseData.build(),
-            advertiseCallback
-        )
+            val mBuilder = AdvertiseSettings.Builder()
+            mBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+            mBuilder.setConnectable(true)
+            mBuilder.setTimeout(0)
+            mBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+
+            advertiser?.startAdvertising(mBuilder.build(), mAdData.build(), advertiseCallback);
+        } catch (e: Exception) {
+            print(e)
+        }
 
 
     }
+
+    fun setAdvertiseData() {
+        val mBuilder = AdvertiseData.Builder()
+        val mManufacturerData = ByteBuffer.allocate(24)
+        val uuid = getIdAsByte(UUID.fromString("0CF052C297CA407C84F8B62AAC4E9020"))
+
+        mManufacturerData.put(0, 0xBE.toByte()) // Beacon Identifier
+        mManufacturerData.put(1, 0xAC.toByte()) // Beacon Identifier
+
+        for (i in 2..17) {
+            mManufacturerData.put(i, uuid[i - 2]) // adding the UUID
+        }
+
+        mManufacturerData.put(18, 0x00.toByte()) // first byte of Major
+        mManufacturerData.put(19, 0x09.toByte()) // second byte of Major
+        mManufacturerData.put(20, 0x00.toByte()) // first minor
+        mManufacturerData.put(21, 0x06.toByte()) // second minor
+        mManufacturerData.put(22, 0xB5.toByte()) // txPower
+
+        mBuilder.addManufacturerData(224, mManufacturerData.array()) // using google's company ID
+
+    }
+
+    private fun getIdAsByte(uuid: UUID): ByteArray {
+        val buffer = ByteBuffer.wrap(ByteArray(16))
+        buffer.putLong(uuid.mostSignificantBits)
+        buffer.putLong(uuid.leastSignificantBits)
+        return buffer.array()
+    }
+
+    fun setAdvertiseSettings() {
+        val mBuilder = AdvertiseSettings.Builder()
+        mBuilder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_POWER)
+        mBuilder.setConnectable(false)
+        mBuilder.setTimeout(0)
+        mBuilder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
+    }
+
 
     private fun stopAdvertising() {
         advertiser?.stopAdvertising(advertiseCallback)
